@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N7 Company CRM</title>
+
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:Segoe UI; }
+
+body {
+  background: linear-gradient(135deg,#1a0033,#2b0a5a);
+  color:white;
+}
+
+/* HEADER */
+.header {
+  display:flex;
+  justify-content:space-between;
+  padding:20px 40px;
+  background:rgba(255,255,255,0.05);
+  backdrop-filter:blur(10px);
+}
+
+.logo {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.logo-icon {
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  background:linear-gradient(135deg,#a855f7,#ec4899);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+}
+
+/* FORM */
+.container {
+  padding:20px;
+  max-width:1200px;
+  margin:auto;
+}
+
+.form {
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+
+input, textarea {
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  width:100%;
+  background:#0f172a;
+  color:white;
+}
+
+button {
+  padding:10px 15px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:linear-gradient(135deg,#a855f7,#ec4899);
+  color:white;
+}
+
+/* PIPELINE */
+.pipeline {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:15px;
+}
+
+.column {
+  background:rgba(255,255,255,0.05);
+  padding:10px;
+  border-radius:10px;
+  min-height:300px;
+}
+
+.column h3 {
+  margin-bottom:10px;
+  font-size:14px;
+  opacity:0.8;
+}
+
+/* LEAD */
+.lead {
+  background:rgba(255,255,255,0.07);
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:8px;
+  cursor:grab;
+}
+
+.actions {
+  display:flex;
+  justify-content:space-between;
+  margin-top:5px;
+}
+
+.icon-btn {
+  background:none;
+  border:none;
+  cursor:pointer;
+  color:white;
+}
+
+.small {
+  font-size:11px;
+  opacity:0.7;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">N7</div>
+    <div>N7 Company CRM</div>
+  </div>
+  <div>Pipeline</div>
+</div>
+
+<div class="container">
+
+<div class="form">
+  <input id="nome" placeholder="Nome">
+  <input id="numero" placeholder="Número">
+  <button onclick="addLead()">Adicionar</button>
+</div>
+
+<textarea id="msg" placeholder="Mensagem padrão (use {nome})"></textarea>
+
+<div class="pipeline">
+
+<div class="column" ondrop="drop(event,'Frio')" ondragover="allowDrop(event)">
+  <h3>Frio</h3>
+  <div id="Frio"></div>
+</div>
+
+<div class="column" ondrop="drop(event,'Interessado')" ondragover="allowDrop(event)">
+  <h3>Interessado</h3>
+  <div id="Interessado"></div>
+</div>
+
+<div class="column" ondrop="drop(event,'Muito interessado')" ondragover="allowDrop(event)">
+  <h3>Muito interessado</h3>
+  <div id="Muito interessado"></div>
+</div>
+
+<div class="column" ondrop="drop(event,'Não interessado')" ondragover="allowDrop(event)">
+  <h3>Não interessado</h3>
+  <div id="Não interessado"></div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let leads = JSON.parse(localStorage.getItem("leads")) || []
+
+function salvar(){
+  localStorage.setItem("leads", JSON.stringify(leads))
+}
+
+function addLead(){
+  const nome = nomeInput.value
+  const numero = numeroInput.value
+
+  if(!nome || !numero) return
+
+  leads.push({
+    id: Date.now(),
+    nome,
+    numero,
+    status:"Frio",
+    ultimaMsg:null
+  })
+
+  salvar()
+  render()
+}
+
+function remover(id){
+  leads = leads.filter(l=>l.id!==id)
+  salvar()
+  render()
+}
+
+function enviar(id){
+  const msg = document.getElementById("msg").value
+  const lead = leads.find(l=>l.id===id)
+  const texto = msg.replace("{nome}", lead.nome)
+
+  const url = `https://wa.me/${lead.numero}?text=${encodeURIComponent(texto)}`
+  window.open(url,"_blank")
+
+  lead.ultimaMsg = new Date().toLocaleString()
+  salvar()
+  render()
+}
+
+/* DRAG */
+function allowDrop(ev){ ev.preventDefault() }
+
+function drag(ev,id){
+  ev.dataTransfer.setData("id", id)
+}
+
+function drop(ev,status){
+  ev.preventDefault()
+  const id = Number(ev.dataTransfer.getData("id"))
+
+  leads = leads.map(l=> l.id===id ? {...l,status} : l)
+
+  salvar()
+  render()
+}
+
+/* RENDER */
+function render(){
+  ["Frio","Interessado","Muito interessado","Não interessado"].forEach(col=>{
+    document.getElementById(col).innerHTML=""
+  })
+
+  leads.forEach(l=>{
+    const el = document.createElement("div")
+    el.className="lead"
+    el.draggable=true
+    el.ondragstart=(e)=>drag(e,l.id)
+
+    el.innerHTML=`
+      <b>${l.nome}</b><br>
+      <span>${l.numero}</span>
+      <div class="small">${l.ultimaMsg || "Sem envio"}</div>
+
+      <div class="actions">
+        <button class="icon-btn" onclick="enviar(${l.id})">
+          <!-- send icon -->
+          ▶
+        </button>
+
+        <button class="icon-btn" onclick="remover(${l.id})">
+          <!-- delete icon -->
+          ✖
+        </button>
+      </div>
+    `
+
+    document.getElementById(l.status).appendChild(el)
+  })
+}
+
+render()
+
+</script>
+
+</body>
+</html>
